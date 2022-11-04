@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 )
@@ -16,14 +18,19 @@ func main() {
 	}()
 
 	c := &config{}
-	log.Fatalln(run(ctx, c))
+	// passing in config and
+	// setting default log output to STDOUT
+	log.Fatalln(run(ctx, c, os.Stdout))
 }
 
-func run(ctx context.Context, c *config) error {
+func run(ctx context.Context, c *config, out io.Writer) error {
+	// init config
 	err := c.init()
 	if err != nil {
 		return err
 	}
+	// set output log
+	log.SetOutput(out)
 
 	for {
 		select {
