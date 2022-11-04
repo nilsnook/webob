@@ -6,14 +6,35 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 )
 
 func main() {
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
+
+	// handling SIGTERM and SIGINT signals
+	// creating a channel to listen for these signals
+	sigChan := make(chan os.Signal, 1)
+	// setup notifications for these signals
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	// separate goroutine to listen for these signals once notified
+	go func() {
+		select {
+		case _ = <-sigChan:
+			log.Println("Got SIGINT/SIGTERM, exiting.")
+			cancel()
+			os.Exit(1)
+		case <-ctx.Done():
+			log.Fatalln("Done.")
+		}
+	}()
+
 	defer func() {
+		signal.Stop(sigChan)
 		cancel()
 	}()
 

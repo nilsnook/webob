@@ -6,6 +6,6 @@ import (
 )
 
 func logError(msg string, received string, expected string) {
-	out := fmt.Sprintf("%s\nReceived: %s\nExpected: %s", msg, received, expected)
-	log.Println(out)
+	info := fmt.Sprintf("%s\n\tReceived: %s\n\tExpected: %s", msg, received, expected)
+	log.Println(info)
 }
