@@ -54,7 +54,6 @@ func (c *config) readConfigFile() error {
 
 	// read from config file
 	if err := viper.ReadInConfig(); err != nil {
-		log.Printf("No config file found [at %s]\n", appConfigDir)
 		return err
 	}
 	return nil
@@ -78,20 +77,36 @@ func (c *config) parseFlags() error {
 	return nil
 }
 
-func (c *config) init() (err error) {
+func (c *config) init() error {
 	// read config file (if any)
 	// ignoring error and continuing to parsing flags
-	c.readConfigFile()
+	err := c.readConfigFile()
+	if err != nil {
+		log.Printf("ERROR: %s\n", err)
+	}
 	// parse flags
 	err = c.parseFlags()
 	if err != nil {
-		return
+		return err
 	}
 	// unmarshal configuration to struct
 	err = viper.Unmarshal(c)
 	if err != nil {
-		return
+		return err
 	}
+	return nil
+}
 
-	return
+func (c *config) initFromConfigFile() error {
+	// read from config file
+	err := c.readConfigFile()
+	if err != nil {
+		return err
+	}
+	// unmarshal configuration to struct
+	err = viper.Unmarshal(c)
+	if err != nil {
+		return err
+	}
+	return nil
 }

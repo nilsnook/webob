@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -13,23 +12,55 @@ import (
 )
 
 func main() {
+	// set log output to STDOUT explicitly
+	log.SetOutput(os.Stdout)
+
+	// context
 	ctx := context.Background()
 	ctx, cancel := context.WithCancel(ctx)
 
-	// handling SIGTERM and SIGINT signals
+	// config
+	c := &config{}
+	// init config
+	err := c.init()
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// handling SIGTERM and SIGINT termination signals and
+	// SIGHUP to reload configuration
+	//
 	// creating a channel to listen for these signals
 	sigChan := make(chan os.Signal, 1)
 	// setup notifications for these signals
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	// separate goroutine to listen for these signals once notified
 	go func() {
-		select {
-		case _ = <-sigChan:
-			log.Println("Got SIGINT/SIGTERM, exiting.")
-			cancel()
-			os.Exit(1)
-		case <-ctx.Done():
-			log.Fatalln("Done.")
+		for {
+			select {
+			case s := <-sigChan:
+				switch s {
+				case syscall.SIGINT, syscall.SIGTERM:
+					log.Println("Got SIGINT/SIGTERM, exiting.")
+					cancel()
+					os.Exit(1)
+				case syscall.SIGHUP:
+					log.Println("Got SIGHUP, reloading with new config.")
+					// reinitialize config
+					nc := &config{}
+					err := nc.initFromConfigFile()
+					if err != nil {
+						log.Printf("ERROR: Error initializing with new config settings.\n")
+						log.Printf("\t%s\n", err)
+						log.Printf("\tResuming with old config...\n")
+					} else {
+						// set new configuration
+						c = nc
+					}
+				}
+			case <-ctx.Done():
+				log.Fatalln("Done.")
+			}
 		}
 	}()
 
@@ -38,21 +69,11 @@ func main() {
 		cancel()
 	}()
 
-	c := &config{}
-	// passing in config and
-	// setting default log output to STDOUT
-	log.Fatalln(run(ctx, c, os.Stdout))
+	// run with config
+	log.Fatalln(run(ctx, c))
 }
 
-func run(ctx context.Context, c *config, out io.Writer) error {
-	// init config
-	err := c.init()
-	if err != nil {
-		return err
-	}
-	// set output log
-	log.SetOutput(out)
-
+func run(ctx context.Context, c *config) error {
 	for {
 		select {
 		case <-ctx.Done():
